@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="script.kodi.xray" name="Kodi X-Ray" version="0.1.0" provider-name="Kodi X-Ray">
+  <requires>
+    <import addon="xbmc.python" version="3.0.1"/>
+  </requires>
+  <extension point="xbmc.python.script" library="default.py">
+    <provides>executable</provides>
+  </extension>
+  <extension point="xbmc.service" library="service.py" start="login"/>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Local cast identification for paused video</summary>
+    <summary lang="ru_RU">Локальное распознавание актёров при паузе</summary>
+    <description lang="en_GB">Shows actor and character labels near faces without sending video frames to the cloud.</description>
+    <platform>all</platform>
+    <license>MIT</license>
+    <assets>
+      <icon>resources/icon.png</icon>
+    </assets>
+  </extension>
+</addon>

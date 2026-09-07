@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+set -a
+. /etc/xray/xray.env
+set +a
+exec /opt/xray/.venv/bin/xrayctl "$@"

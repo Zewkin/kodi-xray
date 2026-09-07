@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply Kodi X-Ray LAN-only firewall
+Wants=network-online.target
+After=network-online.target nftables.service
+Before=xray-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/nftables.conf
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

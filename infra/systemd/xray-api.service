@@ -1,0 +1,27 @@
+[Unit]
+Description=Kodi X-Ray API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xray
+Group=xray
+EnvironmentFile=/etc/xray/xray.env
+Environment=XRAY_CONFIG=/etc/xray/xray.yaml
+RuntimeDirectory=xray
+RuntimeDirectoryMode=0750
+ExecStart=/opt/xray/.venv/bin/uvicorn xray.api.app:app --host 0.0.0.0 --port 8787 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=3
+CPUQuota=400%
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

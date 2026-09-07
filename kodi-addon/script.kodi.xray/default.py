@@ -1,0 +1,5 @@
+from resources.lib.controller import run_manual
+
+if __name__ == "__main__":
+    run_manual()
+

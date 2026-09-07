@@ -1,0 +1,27 @@
+[Unit]
+Description=Kodi X-Ray gallery worker
+After=network-online.target xray-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xray
+Group=xray
+EnvironmentFile=/etc/xray/xray.env
+Environment=XRAY_CONFIG=/etc/xray/xray.yaml
+ExecStart=/opt/xray/.venv/bin/xray-worker
+Restart=on-failure
+RestartSec=5
+Nice=10
+IOSchedulingClass=idle
+CPUQuota=175%
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

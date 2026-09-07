@@ -1,0 +1,32 @@
+{
+  "skin_id": "skin.pellucid",
+  "reference_commit": "1394c02fc8b189263ae6abf1b1102b2a4d7bc7f1",
+  "layout": {
+    "screen_margin_left": 96,
+    "screen_margin_right": 96,
+    "screen_margin_top": 54,
+    "screen_margin_bottom": 270,
+    "inline_max_faces": 3,
+    "subtitle_top": 730,
+    "subtitle_height": 190
+  },
+  "label": {
+    "style": "leader-line",
+    "width": 330,
+    "height": 70,
+    "show_portrait": false,
+    "show_background": "auto",
+    "actor_color": "FFF0F0F0",
+    "role_color": "FFDB0A5B",
+    "accent_color": "FFDB0A5B",
+    "background_color": "B8151515",
+    "actor_font": "itemTitle",
+    "role_font": "itemSubTitle"
+  },
+  "behavior": {
+    "hide_on_video_osd": true,
+    "avoid_clearart": true,
+    "prefer_edge_labels": true
+  }
+}
+

@@ -1,0 +1,53 @@
+server:
+  listen: "0.0.0.0"
+  port: 8787
+  workers: 1
+
+media:
+  roots:
+    - "/media"
+  ffmpeg: "/usr/bin/ffmpeg"
+  ffprobe: "/usr/bin/ffprobe"
+  frame_dir: "/run/xray"
+  max_decode_width: 1280
+
+database:
+  path: "/var/lib/xray/xray.db"
+
+path_maps:
+  - kodi_prefix: "nfs://10.42.42.3/mnt/bigdata/downloads/"
+    backend_prefix: "/media/"
+  - kodi_prefix: "nfs://tank/mnt/bigdata/downloads/"
+    backend_prefix: "/media/"
+  - kodi_prefix: "nfs://nas/media/"
+    backend_prefix: "/media/"
+
+recognition:
+  provider: "opencv_sface"
+  model_dir: "/var/lib/xray/models"
+  detector_model: "face_detection_yunet_2023mar.onnx"
+  recognizer_model: "face_recognition_sface_2021dec.onnx"
+  model_id: "opencv-sface"
+  model_version: "2021dec"
+  detector_threshold: 0.80
+  match_threshold: 0.48
+  match_margin: 0.10
+  min_face_pixels: 42
+
+analysis:
+  neighbor_offset_sec: 0.5
+  max_faces: 12
+  cache_window_sec: 0.5
+
+cache:
+  max_bytes: 25769803776
+
+metadata:
+  max_cast: 30
+  reference_images_per_actor: 5
+
+background_index:
+  enabled: false
+
+debug:
+  store_frames: false

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings version="1">
+  <section id="script.kodi.xray">
+    <category id="network" label="32001">
+      <group id="1">
+        <setting id="backend_url" type="string" label="32002" help="32003">
+          <default>http://10.42.42.6:8787</default>
+        </setting>
+        <setting id="api_token" type="string" label="32004">
+          <level>0</level>
+          <constraints><allowempty>false</allowempty></constraints>
+          <control type="edit" format="string"><heading>32004</heading><hidden>true</hidden></control>
+        </setting>
+        <setting id="timeout" type="number" label="32005"><default>5</default></setting>
+      </group>
+    </category>
+    <category id="behavior" label="32010">
+      <group id="1">
+        <setting id="auto_pause" type="boolean" label="32011"><default>true</default></setting>
+        <setting id="pause_debounce_ms" type="integer" label="32012"><default>350</default></setting>
+      </group>
+    </category>
+    <category id="display" label="32020">
+      <group id="1">
+        <setting id="theme" type="string" label="32021">
+          <default>auto</default>
+          <constraints><options><option label="32022">auto</option><option label="32023">generic</option><option label="32024">pellucid</option></options></constraints>
+          <control type="list" format="string"/>
+        </setting>
+        <setting id="display_mode" type="string" label="32025">
+          <default>auto</default>
+          <constraints><options><option label="32022">auto</option><option label="32026">inline</option><option label="32027">side</option></options></constraints>
+          <control type="list" format="string"/>
+        </setting>
+        <setting id="show_actor" type="boolean" label="32028"><default>true</default></setting>
+        <setting id="show_character" type="boolean" label="32029"><default>true</default></setting>
+        <setting id="show_portrait" type="boolean" label="32030"><default>false</default></setting>
+        <setting id="show_unknown" type="boolean" label="32031"><default>false</default></setting>
+        <setting id="debug_overlay" type="boolean" label="32032"><default>false</default></setting>
+        <setting id="debug_logging" type="boolean" label="32033"><default>false</default></setting>
+      </group>
+    </category>
+  </section>
+</settings>
+

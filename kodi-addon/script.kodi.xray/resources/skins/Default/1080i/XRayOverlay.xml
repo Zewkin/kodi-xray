@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog">
+  <onload>SetProperty(XRay.Active,true,home)</onload>
+  <onunload>ClearProperty(XRay.Active,home)</onunload>
+  <controls>
+    <!-- Dynamic controls are owned by resources/lib/overlay.py. -->
+  </controls>
+</window>
+
