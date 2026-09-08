@@ -9,12 +9,14 @@ media:
   ffmpeg: "/usr/bin/ffmpeg"
   ffprobe: "/usr/bin/ffprobe"
   frame_dir: "/run/xray"
-  max_decode_width: 1280
+  max_decode_width: 1920
 
 database:
   path: "/var/lib/xray/xray.db"
 
 path_maps:
+  - kodi_prefix: "nfs://10.42.42.2/mnt/bigdata/downloads/"
+    backend_prefix: "/media/"
   - kodi_prefix: "nfs://10.42.42.3/mnt/bigdata/downloads/"
     backend_prefix: "/media/"
   - kodi_prefix: "nfs://tank/mnt/bigdata/downloads/"
@@ -29,8 +31,8 @@ recognition:
   recognizer_model: "face_recognition_sface_2021dec.onnx"
   model_id: "opencv-sface"
   model_version: "2021dec"
-  detector_threshold: 0.80
-  match_threshold: 0.48
+  detector_threshold: 0.45
+  match_threshold: 0.36
   match_margin: 0.10
   min_face_pixels: 42
 
@@ -43,8 +45,10 @@ cache:
   max_bytes: 25769803776
 
 metadata:
-  max_cast: 30
+  max_cast: 80
   reference_images_per_actor: 5
+  tvmaze_enabled: true
+  tvmaze_base_url: "https://api.tvmaze.com"
 
 background_index:
   enabled: false

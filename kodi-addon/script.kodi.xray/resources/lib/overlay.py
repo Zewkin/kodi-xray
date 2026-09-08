@@ -5,26 +5,50 @@ import xbmcgui
 import xbmcvfs
 
 from .kodi import gui_size, view_mode
-from .layout import LayoutEngine, Rect, compute_viewport
+from .layout import LayoutEngine, compute_viewport
 
 
-class OverlayWindow(xbmcgui.WindowXMLDialog):
+class OverlayWindow:
+    """Non-focusable overlay surface attached to Kodi's fullscreen video window."""
+
+    def __init__(self):
+        self.window = xbmcgui.Window(12005)
+        self.dynamic_controls = []
+        self.closed = False
+
     def configure(self, result, adapter, settings):
         self.result = result
         self.adapter = adapter
         self.settings = settings
-        self.dynamic_controls = []
         addon_path = xbmcvfs.translatePath(xbmcaddon.Addon().getAddonInfo("path"))
         self.dark_texture = os.path.join(addon_path, "resources", "media", "dark.png")
         self.accent_texture = os.path.join(addon_path, "resources", "media", "accent.png")
-
-    def onInit(self):
         self._render()
 
     def _add(self, control):
-        self.addControl(control)
+        self.window.addControl(control)
         self.dynamic_controls.append(control)
         return control
+
+    def show(self):
+        # Controls are visible as soon as they are attached. Keeping this method
+        # preserves the renderer interface without activating a focus-stealing dialog.
+        return None
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        if self.dynamic_controls:
+            try:
+                self.window.removeControls(self.dynamic_controls)
+            except (AttributeError, RuntimeError):
+                for control in self.dynamic_controls:
+                    try:
+                        self.window.removeControl(control)
+                    except RuntimeError:
+                        pass
+        self.dynamic_controls = []
 
     def _render(self):
         width, height = gui_size()
@@ -52,10 +76,22 @@ class OverlayWindow(xbmcgui.WindowXMLDialog):
         theme = self.adapter.theme["label"]
         rect = placement.label
         x, y, w, h = (int(rect.x), int(rect.y), int(rect.w), int(rect.h))
-        if theme.get("show_background") == "always":
-            self._add(xbmcgui.ControlImage(x - 10, y - 6, w + 20, h + 12, self.dark_texture, colorDiffuse=theme["background_color"]))
-        actor = placement.person.get("actor", {}).get("name", "").upper()
+        x_scale = gui_width / 1920.0
+        y_scale = gui_height / 1080.0
+        if theme.get("show_background") in ("always", "auto"):
+            padding_x = int(theme.get("background_padding_x", 10) * x_scale)
+            padding_y = int(theme.get("background_padding_y", 6) * y_scale)
+            self._add(
+                xbmcgui.ControlImage(
+                    x - padding_x, y - padding_y, w + padding_x * 2, h + padding_y * 2,
+                    self.dark_texture, colorDiffuse=theme["background_color"]
+                )
+            )
+        actor = placement.person.get("actor", {}).get("name", "")
         roles = " / ".join(placement.person.get("roles", []))
+        role_height = int(theme.get("role_height", h * 0.56) * (y_scale if "role_height" in theme else 1.0))
+        actor_offset = int(theme.get("actor_offset", h * 0.62) * (y_scale if "actor_offset" in theme else 1.0))
+        actor_height = int(theme.get("actor_height", h * 0.36) * (y_scale if "actor_height" in theme else 1.0))
         text_x = x
         text_width = w
         portrait = placement.person.get("portrait")
@@ -63,39 +99,37 @@ class OverlayWindow(xbmcgui.WindowXMLDialog):
             portrait_size = min(h, 68)
             self._add(xbmcgui.ControlImage(x, y, portrait_size, portrait_size, portrait))
             text_x += portrait_size + 12
-            text_width = max(80, w - portrait_size - 12)
+            text_width = max(80, text_width - portrait_size - 12)
+        show_role = self.settings.get("show_character", True) and bool(roles)
+        if show_role:
+            self._add(
+                xbmcgui.ControlLabel(
+                    text_x, y, text_width, role_height, roles,
+                    font=theme["role_font"], textColor=theme["role_color"]
+                )
+            )
         if self.settings.get("show_actor", True):
+            actor_y = y + actor_offset if show_role else y
             self._add(
                 xbmcgui.ControlLabel(
-                    text_x, y, text_width, int(h * 0.52), actor, font=theme["actor_font"], textColor=theme["actor_color"]
+                    text_x, actor_y, text_width, actor_height, actor,
+                    font=theme["actor_font"], textColor=theme["actor_color"]
                 )
             )
-        if self.settings.get("show_character", True) and roles:
-            self._add(
-                xbmcgui.ControlLabel(
-                    text_x, y + int(h * 0.48), text_width, int(h * 0.42), roles, font=theme["role_font"], textColor=theme["role_color"]
-                )
-            )
-        anchor_x, anchor_y = (int(value) for value in placement.anchor)
-        line_y = y + h - 7
-        if anchor_x >= x + w / 2:
-            line_x = x + int(w * 0.48)
-            line_w = max(20, anchor_x - line_x)
-        else:
-            line_x = anchor_x
-            line_w = max(20, x + int(w * 0.52) - anchor_x)
-        self._add(xbmcgui.ControlImage(line_x, line_y, line_w, 2, self.accent_texture))
-        self._add(xbmcgui.ControlLabel(anchor_x - 9, anchor_y - 14, 24, 28, "●", font="font13", textColor=theme["accent_color"], alignment=2 | 4))
-
     def _render_side_panel(self, people, unknown, width, height):
         theme = self.adapter.theme["label"]
         panel_width = int(width * 0.34)
         x = width - panel_width
         self._add(xbmcgui.ControlImage(x, 0, panel_width, height, self.dark_texture, colorDiffuse="E6151515"))
-        self._add(xbmcgui.ControlLabel(x + 42, 56, panel_width - 84, 44, "X-RAY", font=theme["actor_font"], textColor=theme["accent_color"]))
+        self._add(xbmcgui.ControlLabel(x + 42, 56, panel_width - 84, 44, "X-RAY", font=theme["role_font"], textColor=theme["accent_color"]))
         y = 126
+        y_scale = height / 1080.0
+        actor_offset = int(theme.get("actor_offset", 45) * (y_scale if "actor_offset" in theme else 1.0))
+        actor_height = int(theme.get("actor_height", 26) * (y_scale if "actor_height" in theme else 1.0))
+        role_height = int(theme.get("role_height", 30) * (y_scale if "role_height" in theme else 1.0))
+        row_height = max(int(78 * y_scale), actor_offset + actor_height + int(8 * y_scale))
         for index, person in enumerate(people[:12], 1):
-            actor = person.get("actor", {}).get("name", "").upper()
+            actor = person.get("actor", {}).get("name", "")
             roles = " / ".join(person.get("roles", []))
             self._add(xbmcgui.ControlLabel(x + 42, y, 42, 36, str(index), font=theme["actor_font"], textColor=theme["accent_color"]))
             text_x = x + 86
@@ -103,10 +137,11 @@ class OverlayWindow(xbmcgui.WindowXMLDialog):
             if self.settings.get("show_portrait") and portrait:
                 self._add(xbmcgui.ControlImage(text_x, y, 58, 58, portrait))
                 text_x += 70
-            self._add(xbmcgui.ControlLabel(text_x, y, width - text_x - 32, 36, actor, font=theme["actor_font"], textColor=theme["actor_color"]))
             if roles:
-                self._add(xbmcgui.ControlLabel(text_x, y + 32, width - text_x - 32, 30, roles, font=theme["role_font"], textColor=theme["role_color"]))
-            y += 78
+                self._add(xbmcgui.ControlLabel(text_x, y, width - text_x - 32, role_height, roles, font=theme["role_font"], textColor=theme["role_color"]))
+            actor_y = y + actor_offset if roles else y
+            self._add(xbmcgui.ControlLabel(text_x, actor_y, width - text_x - 32, actor_height, actor, font=theme["actor_font"], textColor=theme["actor_color"]))
+            y += row_height
         if unknown and y < height - 70:
             self._add(xbmcgui.ControlLabel(x + 42, y, 42, 36, "?", font=theme["actor_font"], textColor=theme["accent_color"]))
             label = "UNKNOWN" if unknown == 1 else "UNKNOWN × {}".format(unknown)
@@ -132,7 +167,6 @@ class OverlayWindow(xbmcgui.WindowXMLDialog):
 
 
 def create_overlay(result, adapter, settings):
-    addon_path = xbmcvfs.translatePath(xbmcaddon.Addon().getAddonInfo("path"))
-    window = OverlayWindow("XRayOverlay.xml", addon_path, "Default", "1080i")
+    window = OverlayWindow()
     window.configure(result, adapter, settings)
     return window

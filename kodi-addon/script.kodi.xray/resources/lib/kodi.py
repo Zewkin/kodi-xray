@@ -67,10 +67,9 @@ def playback_position():
 
 
 def view_mode():
-    player_id = active_video_player_id()
-    if player_id is None:
+    if active_video_player_id() is None:
         return {}
-    result = json_rpc("Player.GetViewMode", {"playerid": player_id})
+    result = json_rpc("Player.GetViewMode")
     return result if isinstance(result, dict) else {}
 
 
@@ -93,6 +92,13 @@ def kodi_version():
 
 
 def gui_size():
+    try:
+        fullscreen = xbmcgui.Window(12005)
+        width, height = int(fullscreen.getWidth()), int(fullscreen.getHeight())
+        if width > 0 and height > 0:
+            return width, height
+    except (AttributeError, RuntimeError, TypeError):
+        pass
     try:
         return int(xbmcgui.getScreenWidth()), int(xbmcgui.getScreenHeight())
     except (AttributeError, TypeError):

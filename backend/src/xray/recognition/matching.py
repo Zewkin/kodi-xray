@@ -15,19 +15,13 @@ class MatchResult:
     accepted: bool
 
 
-def _centroids(gallery: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _identities(gallery: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[int, dict[str, Any]] = {}
     for item in gallery:
         group = grouped.setdefault(item["person_id"], {**item, "vectors": []})
         group["vectors"].append(item["vector"])
         group["roles"] = list(dict.fromkeys(group["roles"] + item.get("roles", [])))
-    result = []
-    for item in grouped.values():
-        centroid = np.mean(np.stack(item.pop("vectors")), axis=0)
-        norm = float(np.linalg.norm(centroid))
-        item["vector"] = centroid / max(norm, 1e-12)
-        result.append(item)
-    return result
+    return list(grouped.values())
 
 
 def match_embedding(
@@ -36,9 +30,15 @@ def match_embedding(
     threshold: float,
     required_margin: float,
 ) -> MatchResult:
-    candidates = _centroids(gallery)
+    candidates = _identities(gallery)
     scored = sorted(
-        ((float(np.dot(embedding, item["vector"])), item) for item in candidates),
+        (
+            (
+                max(float(np.dot(embedding, vector)) for vector in item["vectors"]),
+                item,
+            )
+            for item in candidates
+        ),
         key=lambda pair: pair[0],
         reverse=True,
     )
@@ -49,4 +49,3 @@ def match_embedding(
     margin = best - second
     accepted = best >= threshold and margin >= required_margin
     return MatchResult(person if accepted else None, best, second, margin, accepted)
-

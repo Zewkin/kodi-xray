@@ -11,7 +11,7 @@ import xbmcgui
 import xbmcvfs
 
 from .api import ApiError, XRayApi
-from .kodi import current_media, kodi_version, platform_name, playback_position
+from .kodi import active_video_player_id, current_media, kodi_version, platform_name, playback_position
 from .overlay import create_overlay
 from .theme import load_adapter
 
@@ -34,17 +34,26 @@ class Controller:
         return "{}-{}".format(label.replace(" ", "-").lower(), uuid.getnode())[:128]
 
     def settings(self):
+        api_token = self.addon.getSetting("api_token")
+        if api_token == "__not_configured__":
+            api_token = ""
         return {
             "backend_url": self.addon.getSetting("backend_url").rstrip("/"),
-            "api_token": self.addon.getSetting("api_token"),
+            "api_token": api_token,
             "timeout": float(self.addon.getSetting("timeout") or 5),
             "display_mode": self.addon.getSetting("display_mode") or "auto",
-            "show_actor": self.addon.getSettingBool("show_actor"),
-            "show_character": self.addon.getSettingBool("show_character"),
-            "show_portrait": self.addon.getSettingBool("show_portrait"),
-            "show_unknown": self.addon.getSettingBool("show_unknown"),
-            "debug": self.addon.getSettingBool("debug_overlay"),
+            "show_actor": self._bool_setting("show_actor", True),
+            "show_character": self._bool_setting("show_character", True),
+            "show_portrait": self._bool_setting("show_portrait", False),
+            "show_unknown": self._bool_setting("show_unknown", False),
+            "debug": self._bool_setting("debug_overlay", False),
         }
+
+    def _bool_setting(self, setting_id, default):
+        value = self.addon.getSetting(setting_id)
+        if not value:
+            return default
+        return value.strip().lower() in ("true", "1", "yes", "on")
 
     def session_start(self):
         media = current_media()
@@ -60,7 +69,7 @@ class Controller:
 
     def pause(self, manual=False):
         self.close_overlay()
-        if not manual and not self.addon.getSettingBool("auto_pause"):
+        if not manual and not self._bool_setting("auto_pause", True):
             return
         self.generation += 1
         debounce = 0 if manual else int(self.addon.getSetting("pause_debounce_ms") or 350)
@@ -211,6 +220,10 @@ def run_service():
     player = XRayPlayer(controller)
     HOME.setProperty("XRay.Service", "true")
     try:
+        if active_video_player_id() is not None:
+            controller.session_start()
+            if xbmc.getCondVisibility("Player.Paused"):
+                controller.pause()
         while not monitor.abortRequested():
             controller.tick()
             if monitor.waitForAbort(0.1):

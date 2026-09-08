@@ -11,6 +11,7 @@ from xray.api.schemas import XRayRequest
 from xray.config import Settings
 from xray.db import Database
 from xray.media import FrameExtractor, SecurePathResolver
+from xray.metadata import MetadataProvider
 from xray.recognition.backend import FaceObservation, FaceRecognitionBackend, load_bgr
 from xray.recognition.matching import match_embedding
 
@@ -23,12 +24,14 @@ class SceneAnalyzer:
         resolver: SecurePathResolver,
         extractor: FrameExtractor,
         recognizer: FaceRecognitionBackend,
+        metadata: MetadataProvider,
     ):
         self.settings = settings
         self.database = database
         self.resolver = resolver
         self.extractor = extractor
         self.recognizer = recognizer
+        self.metadata = metadata
 
     def analyze(self, request: XRayRequest) -> dict[str, Any]:
         started = time.monotonic()
@@ -41,6 +44,8 @@ class SceneAnalyzer:
             media_key, resolved.path, probe.duration, request.media.model_dump(exclude={"cast"})
         )
         self._sync_cast(media_id, request.media.cast)
+        if not request.media.cast and not self.database.media_has_roles(media_id):
+            self._sync_metadata_cast(media_id, self.metadata.get_cast(request.media))
         bucket = round(request.playback.position / self.settings.analysis.cache_window_sec)
         cached = self.database.get_cached(media_id, bucket, self.recognizer.model_id)
         if cached:
@@ -120,6 +125,12 @@ class SceneAnalyzer:
             self.database.set_roles(media_id, person_id, person.roles)
             self.database.enqueue_gallery(media_id, person_id, person.image_urls)
 
+    def _sync_metadata_cast(self, media_id: int, cast: list[Any]) -> None:
+        for person in cast:
+            person_id = self.database.upsert_person(person.external_id, person.name)
+            self.database.set_roles(media_id, person_id, person.roles)
+            self.database.enqueue_gallery(media_id, person_id, person.image_urls)
+
     def _embedded_faces(self, image: np.ndarray) -> list[tuple[FaceObservation, np.ndarray]]:
         result = []
         for face in self.recognizer.detect(image):
@@ -147,4 +158,3 @@ class SceneAnalyzer:
             if distance <= 0.15 and similarity >= 0.30:
                 candidates.append((similarity - distance, vector))
         return max(candidates, key=lambda pair: pair[0])[1] if candidates else None
-

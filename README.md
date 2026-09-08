@@ -17,8 +17,9 @@ Version `0.1.0` provides:
 - reproducible unprivileged Proxmox LXC provisioning and rollback tooling.
 
 The backend never uploads frames or embeddings. It has no OpenAI or cloud AI
-dependency. TMDb is optional and is used only for cast metadata/reference
-images when an operator supplies a token.
+dependency. When `XRAY_TMDB_TOKEN` is configured, TMDb is the primary source
+for episode-specific credits and reference images; TVmaze is the metadata-only
+fallback for raw episode filenames.
 
 ## Development
 
@@ -38,4 +39,3 @@ Models are deliberately excluded from Git. See
 Deployment and rollback are documented in
 [`docs/deployment.md`](docs/deployment.md) and
 [`docs/uninstall.md`](docs/uninstall.md).
-

@@ -1,4 +1,10 @@
+import unicodedata
 from dataclasses import dataclass
+
+try:
+    from .font_metrics import measure_text
+except ImportError:  # Direct module loading in the lightweight test harness.
+    from font_metrics import measure_text
 
 
 @dataclass
@@ -44,13 +50,14 @@ class LayoutEngine:
 
     def place(self, people, viewport, adapter, gui_width=1920, gui_height=1080):
         theme = adapter.theme
-        width = theme["label"]["width"] * gui_width / 1920.0
+        label_theme = theme["label"]
         height = theme["label"]["height"] * gui_height / 1080.0
         margins = adapter.get_safe_regions(gui_width, gui_height)
         forbidden = [Rect(item["x"], item["y"], item["w"], item["h"]) for item in adapter.get_forbidden_regions(gui_width, gui_height, _has_clearart())]
         faces = [self._face_rect(person["bbox"], viewport) for person in people]
         placed = []
         for index, (person, face) in enumerate(zip(people, faces)):
+            width = self._label_width(person, label_theme) * gui_width / 1920.0
             scored = []
             for name, horizontal, vertical in self.CANDIDATES:
                 label = self._candidate(face, width, height, horizontal, vertical)
@@ -59,8 +66,76 @@ class LayoutEngine:
                     score += min(label.x, max(0, gui_width - label.x - label.w)) * 0.02
                 scored.append((score, name, label))
             _, name, label = min(scored, key=lambda item: item[0])
-            placed.append(Placement(face, label, face.center, name, person))
+            placed.append(Placement(face, label, self._anchor(face, name), name, person))
         return placed
+
+    @classmethod
+    def _label_width(cls, person, theme):
+        fallback = float(theme.get("width", 330))
+        if not theme.get("auto_width", False):
+            return fallback
+
+        actor = person.get("actor", {}).get("name", "")
+        roles = " / ".join(person.get("roles", []))
+        actor_size = float(theme.get("actor_font_size", 20))
+        role_size = float(theme.get("role_font_size", 32))
+        actor_width = cls._font_text_width(actor, actor_size, "actor", theme)
+        role_width = cls._font_text_width(roles, role_size, "role", theme)
+        content_width = max(actor_width, role_width)
+        content_width += float(theme.get("text_width_slack", 8))
+        if theme.get("show_portrait") and person.get("portrait"):
+            content_width += float(theme.get("portrait_width", 80))
+        minimum = float(theme.get("min_width", 160))
+        maximum = float(theme.get("max_width", 520))
+        return max(minimum, min(maximum, content_width))
+
+    @classmethod
+    def _font_text_width(cls, text, font_size, prefix, theme):
+        measured = measure_text(theme.get(prefix + "_font_file"), text, font_size)
+        if measured is not None:
+            return measured
+        default_scale = float(theme.get("text_width_scale", 1.0))
+        scale = float(theme.get(prefix + "_width_scale", default_scale))
+        return cls._estimated_text_width(text, font_size) * scale
+
+    @staticmethod
+    def _estimated_text_width(text, font_size):
+        """Approximate Kodi label width where its Python API exposes no text metrics."""
+        units = 0.0
+        for char in text or "":
+            category = unicodedata.category(char)
+            if category.startswith("M"):
+                continue
+            if char.isspace():
+                units += 0.32
+            elif char in "ijlI1|!.,:;'`":
+                units += 0.28
+            elif char in "mwMW@%&ЖШЩЮФЫ":
+                units += 0.86
+            elif unicodedata.east_asian_width(char) in ("W", "F"):
+                units += 1.0
+            elif category.startswith("P"):
+                units += 0.38
+            elif char.isupper():
+                units += 0.62
+            elif char.isdigit():
+                units += 0.54
+            else:
+                units += 0.52
+        return units * font_size
+
+    @staticmethod
+    def _anchor(face, candidate):
+        x, y = face.center
+        if "right" in candidate:
+            x = face.x + face.w + 6
+        elif "left" in candidate:
+            x = face.x - 6
+        if "top" in candidate or candidate == "above":
+            y = face.y - 6
+        elif "bottom" in candidate or candidate == "below":
+            y = face.y + face.h + 6
+        return x, y
 
     @staticmethod
     def _face_rect(bbox, viewport):
@@ -130,4 +205,3 @@ def _has_clearart():
         return bool(xbmc.getInfoLabel("Player.Art(clearart)") or xbmc.getInfoLabel("Player.Art(clearlogo)"))
     except ImportError:
         return False
-

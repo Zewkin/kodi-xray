@@ -46,7 +46,7 @@ class RecognitionSettings(BaseModel):
     recognizer_model: str = "face_recognition_sface_2021dec.onnx"
     model_id: str = "opencv-sface"
     model_version: str = "2021dec"
-    detector_threshold: float = Field(0.80, ge=0, le=1)
+    detector_threshold: float = Field(0.45, ge=0, le=1)
     match_threshold: float = Field(0.48, ge=-1, le=1)
     match_margin: float = Field(0.10, ge=0, le=2)
     min_face_pixels: int = Field(42, ge=16, le=512)
@@ -65,7 +65,9 @@ class CacheSettings(BaseModel):
 class MetadataSettings(BaseModel):
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     tmdb_image_base_url: str = "https://image.tmdb.org/t/p/w500"
-    max_cast: int = Field(30, ge=1, le=100)
+    tvmaze_enabled: bool = False
+    tvmaze_base_url: str = "https://api.tvmaze.com"
+    max_cast: int = Field(80, ge=1, le=100)
     reference_images_per_actor: int = Field(5, ge=1, le=8)
 
 
@@ -111,4 +113,3 @@ def load_settings() -> Settings:
     if tmdb_token:
         raw["tmdb_token"] = tmdb_token
     return Settings.model_validate(raw)
-

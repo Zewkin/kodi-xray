@@ -43,7 +43,7 @@ class Services:
         self.recognizer = OpenCvSFaceBackend(settings)
         self.metadata = CompositeMetadataProvider(settings)
         self.analyzer = SceneAnalyzer(
-            settings, self.database, self.resolver, self.extractor, self.recognizer
+            settings, self.database, self.resolver, self.extractor, self.recognizer, self.metadata
         )
         self.metrics = {"requests": 0, "cache_hits": 0, "cache_misses": 0, "errors": 0}
 
@@ -201,4 +201,3 @@ def metrics() -> dict:
 @app.exception_handler(PathResolutionError)
 def path_error(_request: Request, exc: PathResolutionError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
-

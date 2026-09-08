@@ -40,3 +40,30 @@ def test_detection_persistence_and_invalidation(tmp_path):
     assert database.stats()["detections"] == 1
     assert database.invalidate_media("key") == 1
     assert database.stats()["detections"] == 0
+
+
+def test_changed_gallery_urls_requeue_completed_job(tmp_path):
+    media = tmp_path / "episode.mkv"
+    media.write_bytes(b"not-real-video")
+    database = Database(tmp_path / "xray.db")
+    database.initialize()
+    media_id = database.upsert_media("key", media, 120.0, {"title": "Episode"})
+    person_id = database.upsert_person("tmdb:1", "Actor")
+
+    database.enqueue_gallery(media_id, person_id, ["https://images/one.jpg"])
+    job = database.claim_gallery_job()
+    assert job is not None
+    database.finish_gallery_job(job["id"])
+    database.enqueue_gallery(media_id, person_id, ["https://images/one.jpg"])
+    with database.connect() as connection:
+        unchanged = connection.execute("SELECT state,attempts FROM gallery_jobs").fetchone()
+    assert tuple(unchanged) == ("done", 1)
+
+    database.enqueue_gallery(
+        media_id,
+        person_id,
+        ["https://images/one.jpg", "https://images/two.jpg"],
+    )
+    with database.connect() as connection:
+        changed = connection.execute("SELECT state,attempts,error FROM gallery_jobs").fetchone()
+    assert tuple(changed) == ("queued", 0, None)

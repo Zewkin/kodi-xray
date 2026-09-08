@@ -1,0 +1,13 @@
+<!-- Add these entries inside each Pellucid Remix <fontset>. Adapt filename for non-default fontsets. -->
+<font>
+  <name>xrayActor</name>
+  <filename>roboto/condensedBold.ttf</filename>
+  <size>32</size>
+  <linespacing>1.0</linespacing>
+</font>
+<font>
+  <name>xrayCharacter</name>
+  <filename>roboto_slab/bold.ttf</filename>
+  <size>20</size>
+  <linespacing>1.0</linespacing>
+</font>

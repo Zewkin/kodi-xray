@@ -13,15 +13,28 @@
   "label": {
     "style": "leader-line",
     "width": 330,
-    "height": 70,
+    "auto_width": true,
+    "min_width": 120,
+    "max_width": 520,
+    "actor_font_file": "special://skin/fonts/roboto_slab/bold.ttf",
+    "role_font_file": "special://skin/fonts/roboto/condensedBold.ttf",
+    "actor_width_scale": 1.0,
+    "role_width_scale": 0.89,
+    "text_width_slack": 6,
+    "height": 72,
     "show_portrait": false,
     "show_background": "auto",
-    "actor_color": "FFF0F0F0",
-    "role_color": "FFDB0A5B",
+    "actor_color": "FFDB0A5B",
+    "role_color": "FFF0F0F0",
     "accent_color": "FFDB0A5B",
     "background_color": "B8151515",
-    "actor_font": "itemTitle",
-    "role_font": "itemSubTitle"
+    "actor_font": "itemSubTitle",
+    "role_font": "itemTitle",
+    "actor_font_size": 20,
+    "role_font_size": 32,
+    "actor_height": 26,
+    "actor_offset": 45,
+    "role_height": 40
   },
   "behavior": {
     "hide_on_video_osd": true,
@@ -29,4 +42,3 @@
     "prefer_edge_labels": true
   }
 }
-

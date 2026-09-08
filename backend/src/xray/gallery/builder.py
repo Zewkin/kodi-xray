@@ -48,6 +48,10 @@ class GalleryBuilder:
                 return True
             urls = list(dict.fromkeys(json.loads(job["urls_json"])))
             urls.extend(url for url in self.metadata.get_person_images(person["external_id"]) if url not in urls)
+            existing_sources = self.database.embedding_sources(
+                int(job["person_id"]), self.recognizer.model_id, self.recognizer.model_version
+            )
+            urls = [url for url in urls if url not in existing_sources]
             successes = 0
             for url in urls:
                 if existing + successes >= wanted:

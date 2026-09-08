@@ -1,7 +1,7 @@
 # Deployment report
 
-Status at 2026-09-07: backend deployed and live-tested; Kodi client install and
-visual acceptance remain operator/client-side steps.
+Status at 2026-09-07: backend and Kodi client deployed and live-tested on the
+Fire TV client at `192.168.1.148`.
 
 ## Installed topology
 
@@ -15,7 +15,7 @@ visual acceptance remain operator/client-side steps.
   duplicate NFS mount or host `/etc/fstab` entry was created.
 - API `http://10.42.42.6:8787/api/v1`; nftables default-deny allows 8787 only
   from `10.42.42.0/24`, `10.21.21.0/24`, and `192.168.1.0/24`.
-- Backend/addon/API/adapter versions: `0.1.0` / `0.1.0` / v1 / v1.
+- Backend/addon/API/adapter versions: `0.1.0` / `0.1.10` / v1 / v1.
 - `xray-api`, `xray-worker`, and boot-ordered `xray-firewall` are enabled and
   active as tested. API and worker run as locked user `xray` with no new
   privileges and empty capability sets.
@@ -32,12 +32,13 @@ evidence; the snapshotted host files were not edited.
   `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79`.
 - CPU inference baseline; iGPU passthrough was deliberately not added.
 - Pellucid reference commit
-  `1394c02fc8b189263ae6abf1b1102b2a4d7bc7f1`; no optional skin patch is
-  required or installed.
+  `1394c02fc8b189263ae6abf1b1102b2a4d7bc7f1`. The Fire TV installation
+  registers the `xrayActor` and `xrayCharacter` fonts in every Pellucid Remix
+  fontset and loads the matching X-Ray theme override.
 
 ## Verification evidence
 
-- Local automated suite: 14 tests passed; Python bytecode compilation, shell
+- Local automated suite: 19 tests passed; Python bytecode compilation, shell
   syntax, XML parsing, ZIP integrity, and secret scan passed.
 - `/ready`: HTTP 200 from both inside the CT and routed client LAN.
 - Missing bearer token: HTTP 401. Parent traversal attempt: HTTP 422.
@@ -57,8 +58,8 @@ evidence; the snapshotted host files were not edited.
 
 ## Client handoff and known limits
 
-The installable package is `dist/script.kodi.xray-0.1.0.zip` (SHA-256
-`31bc0cfda2a30de3670e52b8c5a7b70aed22dedc8b36d8a70575822e28b77242`).
+The installable package is `dist/script.kodi.xray-0.1.10.zip` (SHA-256
+`47c58f529554061bef03daedf776f6a77439e0920b03ff1eea066514c5952f21`).
 The reproducible deployment source bundle is `dist/kodi-xray-0.1.0.tar.gz`;
 regenerate it with `infra/packaging/build-source.sh`. In each Kodi
 client, install from ZIP, keep backend URL `http://10.42.42.6:8787`, copy the
@@ -66,10 +67,15 @@ token from `/etc/xray/xray.env`, and verify the exact NFS URL prefix used by
 that client. The current allow-listed mappings cover the documented IP/host
 forms; a different Kodi source prefix must be added explicitly.
 
-Android/CoreELEC callback behavior and Pellucid/generic visual calibration
-cannot be signed off without access to those live Kodi clients. HDR cold
-analysis is slower than SDR on the CPU baseline (about 2.7 s in the tested
-4K DV/HDR sample); cache hits remain fast.
+Pellucid Remix rendering was live-tested on the Fire TV client. Character
+names use the 32 px white primary style; actor names use the 20 px pink
+secondary style. Card width uses the active Pellucid TrueType advance metrics
+for the longer rendered line, within a 120–520 px range; card height is 72 px.
+Inline face connectors are hidden.
+The 32:20 hierarchy retains the same 1.6 ratio as Pellucid's 48:30 pause title
+and filename. HDR cold analysis
+is slower than SDR on the CPU baseline (about 2.7 s in the tested 4K DV/HDR
+sample); cache hits remain fast.
 
 ## Rollback
 

@@ -23,7 +23,8 @@ def load_adapter():
     addon_path = xbmcvfs.translatePath(addon.getAddonInfo("path"))
     requested = addon.getSetting("theme") or "auto"
     current_skin = xbmc.getSkinDir()
-    pellucid = requested == "pellucid" or (requested == "auto" and current_skin == "skin.pellucid")
+    pellucid_skins = {"skin.pellucid", "skin.pellucidRemix"}
+    pellucid = requested == "pellucid" or (requested == "auto" and current_skin in pellucid_skins)
     name = "pellucid" if pellucid else "generic"
     with open(os.path.join(addon_path, "resources", "themes", name + ".json"), "r", encoding="utf-8") as handle:
         theme = json.load(handle)
@@ -35,4 +36,3 @@ def load_adapter():
         except (OSError, ValueError):
             xbmc.log("Kodi X-Ray: invalid theme override ignored", xbmc.LOGWARNING)
     return PellucidAdapter(theme) if pellucid else GenericAdapter(theme)
-

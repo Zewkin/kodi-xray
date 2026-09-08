@@ -160,7 +160,12 @@ class Database:
                    VALUES(?,?,?,'queued',?,?)
                    ON CONFLICT(media_id,person_id) DO UPDATE SET
                      urls_json=excluded.urls_json,
-                     state=CASE WHEN gallery_jobs.state='done' THEN 'done' ELSE 'queued' END,
+                     state=CASE
+                       WHEN gallery_jobs.urls_json=excluded.urls_json AND gallery_jobs.state='done' THEN 'done'
+                       ELSE 'queued'
+                     END,
+                     attempts=CASE WHEN gallery_jobs.urls_json=excluded.urls_json THEN gallery_jobs.attempts ELSE 0 END,
+                     error=CASE WHEN gallery_jobs.urls_json=excluded.urls_json THEN gallery_jobs.error ELSE NULL END,
                      updated_at=excluded.updated_at""",
                 (media_id, person_id, json.dumps(urls), now, now),
             )
@@ -227,6 +232,14 @@ class Database:
                     (person_id, model_id, model_version),
                 ).fetchone()[0]
             )
+
+    def embedding_sources(self, person_id: int, model_id: str, model_version: str) -> set[str]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT source FROM embeddings WHERE person_id=? AND model_id=? AND model_version=?",
+                (person_id, model_id, model_version),
+            ).fetchall()
+        return {str(row[0]) for row in rows}
 
     def gallery_for_media(self, media_id: int, model_id: str, model_version: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
@@ -339,6 +352,10 @@ class Database:
                 "SELECT COUNT(*) FROM gallery_jobs WHERE media_id=? AND state!='done'", (media_id,)
             ).fetchone()[0]
         return int(ready), int(queued)
+
+    def media_has_roles(self, media_id: int) -> bool:
+        with self.connect() as connection:
+            return connection.execute("SELECT 1 FROM roles WHERE media_id=? LIMIT 1", (media_id,)).fetchone() is not None
 
     def prune_analyses(self, older_than: float) -> int:
         with self.connect() as connection:

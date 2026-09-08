@@ -40,3 +40,18 @@ def test_unknown_wins_below_threshold():
     result = match_embedding(vector, gallery(), 0.48, 0.10)
     assert not result.accepted
 
+
+def test_best_reference_is_not_diluted_by_a_dissimilar_portrait():
+    references = gallery() + [
+        {
+            "person_id": 1,
+            "external_id": "tmdb:1",
+            "name": "Actor One",
+            "roles": ["Hero"],
+            "vector": np.asarray([0.0, -1.0], dtype=np.float32),
+        }
+    ]
+    result = match_embedding(np.asarray([0.99, 0.01]), references, 0.48, 0.10)
+    assert result.accepted
+    assert result.person["external_id"] == "tmdb:1"
+    assert result.best > 0.98

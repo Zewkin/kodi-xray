@@ -12,15 +12,24 @@
   "label": {
     "style": "compact-card",
     "width": 330,
-    "height": 76,
+    "auto_width": true,
+    "min_width": 120,
+    "max_width": 520,
+    "text_width_slack": 8,
+    "height": 68,
     "show_portrait": false,
     "show_background": "always",
-    "actor_color": "FFF0F0F0",
-    "role_color": "FFBDBDBD",
+    "actor_color": "FFDB0A5B",
+    "role_color": "FFF0F0F0",
     "accent_color": "FFDB0A5B",
     "background_color": "CC151515",
-    "actor_font": "font13",
-    "role_font": "font12"
+    "actor_font": "font12",
+    "role_font": "font13",
+    "actor_font_size": 20,
+    "role_font_size": 30,
+    "actor_height": 26,
+    "actor_offset": 41,
+    "role_height": 38
   },
   "behavior": {
     "hide_on_video_osd": true,
@@ -28,4 +37,3 @@
     "prefer_edge_labels": false
   }
 }
-
