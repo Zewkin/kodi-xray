@@ -49,6 +49,8 @@ class RecognitionSettings(BaseModel):
     detector_threshold: float = Field(0.45, ge=0, le=1)
     match_threshold: float = Field(0.48, ge=-1, le=1)
     match_margin: float = Field(0.10, ge=0, le=2)
+    fast_match_threshold: float = Field(0.45, ge=-1, le=1)
+    fast_match_margin: float = Field(0.14, ge=0, le=2)
     min_face_pixels: int = Field(42, ge=16, le=512)
 
 
@@ -56,6 +58,7 @@ class AnalysisSettings(BaseModel):
     neighbor_offset_sec: float = Field(0.5, ge=0, le=2)
     max_faces: int = Field(12, ge=1, le=32)
     cache_window_sec: float = Field(0.5, gt=0, le=3)
+    adaptive_neighbors: bool = True
 
 
 class CacheSettings(BaseModel):

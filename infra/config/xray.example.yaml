@@ -34,12 +34,15 @@ recognition:
   detector_threshold: 0.45
   match_threshold: 0.36
   match_margin: 0.10
+  fast_match_threshold: 0.45
+  fast_match_margin: 0.14
   min_face_pixels: 42
 
 analysis:
   neighbor_offset_sec: 0.5
   max_faces: 12
   cache_window_sec: 0.5
+  adaptive_neighbors: true
 
 cache:
   max_bytes: 25769803776

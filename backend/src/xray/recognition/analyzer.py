@@ -13,7 +13,7 @@ from xray.db import Database
 from xray.media import FrameExtractor, SecurePathResolver
 from xray.metadata import MetadataProvider
 from xray.recognition.backend import FaceObservation, FaceRecognitionBackend, load_bgr
-from xray.recognition.matching import match_embedding
+from xray.recognition.matching import MatchResult, match_embedding
 
 
 class SceneAnalyzer:
@@ -57,16 +57,54 @@ class SceneAnalyzer:
         gallery = self.database.gallery_for_media(
             media_id, self.recognizer.model_id, self.recognizer.model_version
         )
-        workspace, frame_paths = self.extractor.extract(resolved.path, request.playback.position, probe)
+        workspace, central_path = self.extractor.extract_central(
+            resolved.path, request.playback.position, probe
+        )
         try:
-            images = [load_bgr(path) for path in frame_paths]
-            central = images[1]
+            central = load_bgr(central_path)
             central_faces = self.recognizer.detect(central)
-            neighbor_faces = [self._embedded_faces(images[index]) for index in (0, 2)]
+
+            # Neighbor frames cannot change the result when the paused frame has no
+            # detectable faces, so avoid two expensive decodes in that common case.
+            if not central_faces:
+                return self._store_response(
+                    request, media_id, media_key, bucket, central.shape, [], 0, started
+                )
+
+            central_evidence = [
+                (face, self.recognizer.embed(self.recognizer.align(central, face)))
+                for face in central_faces
+            ]
+
+            if self.settings.analysis.adaptive_neighbors:
+                fast_threshold = max(
+                    self.settings.recognition.match_threshold,
+                    self.settings.recognition.fast_match_threshold,
+                )
+                fast_margin = max(
+                    self.settings.recognition.match_margin,
+                    self.settings.recognition.fast_match_margin,
+                )
+                fast_matches = [
+                    match_embedding(vector, gallery, fast_threshold, fast_margin)
+                    for _face, vector in central_evidence
+                ]
+                if all(match.accepted for match in fast_matches):
+                    people = [
+                        self._person(face, match, central.shape)
+                        for (face, _vector), match in zip(central_evidence, fast_matches)
+                    ]
+                    return self._store_response(
+                        request, media_id, media_key, bucket, central.shape, people, 0, started
+                    )
+
+            neighbor_paths = self.extractor.extract_neighbors(
+                resolved.path, request.playback.position, probe, workspace
+            )
+            neighbor_faces = [self._embedded_faces(load_bgr(path)) for path in neighbor_paths]
             people = []
             unknown = 0
-            for face in central_faces:
-                vector = self.recognizer.embed(self.recognizer.align(central, face))
+            for face, vector in central_evidence:
                 evidence = [vector]
                 for observations in neighbor_faces:
                     candidate = self._temporal_candidate(face, vector, observations, central.shape)
@@ -83,37 +121,65 @@ class SceneAnalyzer:
                 if not match.accepted or match.person is None:
                     unknown += 1
                     continue
-                height, width = central.shape[:2]
-                x, y, w, h = face.bbox
-                people.append(
-                    {
-                        "actor": {"id": match.person["external_id"], "name": match.person["name"]},
-                        "roles": match.person["roles"],
-                        "bbox": {
-                            "x": max(0.0, min(1.0, x / width)),
-                            "y": max(0.0, min(1.0, y / height)),
-                            "w": max(1 / width, min(1.0, w / width)),
-                            "h": max(1 / height, min(1.0, h / height)),
-                        },
-                        "similarity": round(match.best, 4),
-                        "top2_margin": round(match.margin, 4),
-                        "accepted": True,
-                    }
-                )
-            latency = round((time.monotonic() - started) * 1000, 2)
-            response = {
-                "timestamp": request.playback.position,
-                "media_key": media_key,
-                "frame": {"width": central.shape[1], "height": central.shape[0]},
-                "people": people,
-                "unknown_faces": unknown,
-                "cache_hit": False,
-                "latency_ms": latency,
-            }
-            self.database.put_analysis(media_id, request.playback.position, bucket, self.recognizer.model_id, response, latency)
-            return response
+                people.append(self._person(face, match, central.shape))
+            return self._store_response(
+                request, media_id, media_key, bucket, central.shape, people, unknown, started
+            )
         finally:
             self.extractor.cleanup(workspace)
+
+    @staticmethod
+    def _person(
+        face: FaceObservation, match: MatchResult, image_shape: tuple[int, ...]
+    ) -> dict[str, Any]:
+        if match.person is None:
+            raise ValueError("accepted match must include a person")
+        height, width = image_shape[:2]
+        x, y, w, h = face.bbox
+        return {
+            "actor": {"id": match.person["external_id"], "name": match.person["name"]},
+            "roles": match.person["roles"],
+            "bbox": {
+                "x": max(0.0, min(1.0, x / width)),
+                "y": max(0.0, min(1.0, y / height)),
+                "w": max(1 / width, min(1.0, w / width)),
+                "h": max(1 / height, min(1.0, h / height)),
+            },
+            "similarity": round(match.best, 4),
+            "top2_margin": round(match.margin, 4),
+            "accepted": True,
+        }
+
+    def _store_response(
+        self,
+        request: XRayRequest,
+        media_id: int,
+        media_key: str,
+        bucket: int,
+        image_shape: tuple[int, ...],
+        people: list[dict[str, Any]],
+        unknown: int,
+        started: float,
+    ) -> dict[str, Any]:
+        latency = round((time.monotonic() - started) * 1000, 2)
+        response = {
+            "timestamp": request.playback.position,
+            "media_key": media_key,
+            "frame": {"width": image_shape[1], "height": image_shape[0]},
+            "people": people,
+            "unknown_faces": unknown,
+            "cache_hit": False,
+            "latency_ms": latency,
+        }
+        self.database.put_analysis(
+            media_id,
+            request.playback.position,
+            bucket,
+            self.recognizer.model_id,
+            response,
+            latency,
+        )
+        return response
 
     def _sync_cast(self, media_id: int, cast: list[Any]) -> None:
         from xray.metadata.providers import KodiMetadataProvider

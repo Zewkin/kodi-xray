@@ -15,7 +15,7 @@ Fire TV client at `192.168.1.148`.
   duplicate NFS mount or host `/etc/fstab` entry was created.
 - API `http://10.42.42.6:8787/api/v1`; nftables default-deny allows 8787 only
   from `10.42.42.0/24`, `10.21.21.0/24`, and `192.168.1.0/24`.
-- Backend/addon/API/adapter versions: `0.1.0` / `0.1.10` / v1 / v1.
+- Backend/addon/API/adapter versions: `0.1.1` / `0.1.10` / v1 / v1.
 - `xray-api`, `xray-worker`, and boot-ordered `xray-firewall` are enabled and
   active as tested. API and worker run as locked user `xray` with no new
   privileges and empty capability sets.
@@ -38,7 +38,7 @@ evidence; the snapshotted host files were not edited.
 
 ## Verification evidence
 
-- Local automated suite: 19 tests passed; Python bytecode compilation, shell
+- Local automated suite: 37 tests passed; Python bytecode compilation, shell
   syntax, XML parsing, ZIP integrity, and secret scan passed.
 - `/ready`: HTTP 200 from both inside the CT and routed client LAN.
 - Missing bearer token: HTTP 401. Parent traversal attempt: HTTP 422.
@@ -60,7 +60,7 @@ evidence; the snapshotted host files were not edited.
 
 The installable package is `dist/script.kodi.xray-0.1.10.zip` (SHA-256
 `47c58f529554061bef03daedf776f6a77439e0920b03ff1eea066514c5952f21`).
-The reproducible deployment source bundle is `dist/kodi-xray-0.1.0.tar.gz`;
+The reproducible deployment source bundle is `dist/kodi-xray-0.1.1.tar.gz`;
 regenerate it with `infra/packaging/build-source.sh`. In each Kodi
 client, install from ZIP, keep backend URL `http://10.42.42.6:8787`, copy the
 token from `/etc/xray/xray.env`, and verify the exact NFS URL prefix used by
@@ -76,6 +76,29 @@ The 32:20 hierarchy retains the same 1.6 ratio as Pellucid's 48:30 pause title
 and filename. HDR cold analysis
 is slower than SDR on the CPU baseline (about 2.7 s in the tested 4K DV/HDR
 sample); cache hits remain fast.
+
+## Adaptive-frame optimization (2026-10-25)
+
+Backend `0.1.1` decodes and analyzes the paused frame first. It returns
+immediately when no face is present or when every detected face clears the
+stricter fast-path similarity and margin thresholds. Ambiguous frames retain
+the original two-neighbor temporal analysis. Media probe results are cached by
+path, size, and modification time.
+
+The same six HLG episode timestamps were measured cold before and after the
+change. Recognized names and unknown results remained unchanged:
+
+| Timestamp | 0.1.0 | 0.1.1 |
+| ---: | ---: | ---: |
+| 196.795 s (ambiguous fallback) | 2602 ms | 2490 ms |
+| 300 s | 3569 ms | 554 ms |
+| 600 s | 2397 ms | 721 ms |
+| 900 s (no face) | 2771 ms | 833 ms |
+| 1200 s (no face) | 3340 ms | 1002 ms |
+| 1800 s | 4285 ms | 1282 ms |
+
+The mean backend latency fell from 3161 ms to 1147 ms (64%). An exact cache
+hit measured 1 ms in the backend and 20 ms round-trip inside the container.
 
 ## Rollback
 

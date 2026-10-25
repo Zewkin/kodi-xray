@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from xray.config import Settings
@@ -35,6 +36,12 @@ class FrameExtractor:
         self.settings = settings
 
     def probe(self, media: Path) -> ProbeResult:
+        stat = media.stat()
+        return self._probe_cached(str(media), stat.st_size, stat.st_mtime_ns)
+
+    @lru_cache(maxsize=256)
+    def _probe_cached(self, media_path: str, _size: int, _mtime_ns: int) -> ProbeResult:
+        media = Path(media_path)
         command = [
             self.settings.media.ffprobe,
             "-v",
@@ -71,22 +78,44 @@ class FrameExtractor:
             rotation=rotation,
         )
 
-    def extract(self, media: Path, timestamp: float, probe: ProbeResult) -> tuple[Path, list[Path]]:
-        base = self.settings.media.frame_dir
-        base.mkdir(parents=True, exist_ok=True, mode=0o750)
-        workspace = Path(tempfile.mkdtemp(prefix="analysis-", dir=base))
-        offsets = (-self.settings.analysis.neighbor_offset_sec, 0.0, self.settings.analysis.neighbor_offset_sec)
-        frames: list[Path] = []
+    def extract_central(self, media: Path, timestamp: float, probe: ProbeResult) -> tuple[Path, Path]:
+        workspace = self._workspace()
+        target = workspace / "frame-1.jpg"
         try:
-            for index, offset in enumerate(offsets):
-                position = max(0.0, min(probe.duration, timestamp + offset))
-                target = workspace / f"frame-{index}.jpg"
-                self._extract_one(media, position, target, probe)
-                frames.append(target)
+            self._extract_one(media, self._position(timestamp, probe), target, probe)
         except Exception:
             shutil.rmtree(workspace, ignore_errors=True)
             raise
-        return workspace, frames
+        return workspace, target
+
+    def extract_neighbors(
+        self, media: Path, timestamp: float, probe: ProbeResult, workspace: Path
+    ) -> list[Path]:
+        offset = self.settings.analysis.neighbor_offset_sec
+        frames = []
+        for index, position in ((0, timestamp - offset), (2, timestamp + offset)):
+            target = workspace / f"frame-{index}.jpg"
+            self._extract_one(media, self._position(position, probe), target, probe)
+            frames.append(target)
+        return frames
+
+    def extract(self, media: Path, timestamp: float, probe: ProbeResult) -> tuple[Path, list[Path]]:
+        workspace, central = self.extract_central(media, timestamp, probe)
+        try:
+            neighbors = self.extract_neighbors(media, timestamp, probe, workspace)
+        except Exception:
+            shutil.rmtree(workspace, ignore_errors=True)
+            raise
+        return workspace, [neighbors[0], central, neighbors[1]]
+
+    def _workspace(self) -> Path:
+        base = self.settings.media.frame_dir
+        base.mkdir(parents=True, exist_ok=True, mode=0o750)
+        return Path(tempfile.mkdtemp(prefix="analysis-", dir=base))
+
+    @staticmethod
+    def _position(position: float, probe: ProbeResult) -> float:
+        return max(0.0, min(probe.duration, position))
 
     def cleanup(self, workspace: Path) -> None:
         if not self.settings.debug.store_frames:
